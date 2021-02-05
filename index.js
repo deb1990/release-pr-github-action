@@ -1,5 +1,6 @@
 const core = require('@actions/core');
 const github = require('@actions/github');
+const { Octokit } = require("@octokit/core");
 
 try {
   // `who-to-greet` input defined in action metadata file
@@ -10,6 +11,13 @@ try {
   // Get the JSON webhook payload for the event that triggered the workflow
   const payload = JSON.stringify(github.context.payload, undefined, 2)
   console.log(`The event payload: ${payload}`);
+
+  var pulls = await octokit.request('GET /deb1990/uk.co.compucorp.civicase/pulls', {
+    owner: 'octocat',
+    repo: 'hello-world'
+  });
+
+  console.log(pulls)
 } catch (error) {
   core.setFailed(error.message);
 }
