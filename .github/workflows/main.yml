@@ -8,5 +8,5 @@ jobs:
     - name: Hello world action step
       id: hello
       uses: deb1990/release-pr-github-action@v1.2
-      with:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
