@@ -1,9 +1,11 @@
+name: Test
+
 on:
   pull_request:
     types: [opened]
 
 jobs:
-  hello_world_job:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
