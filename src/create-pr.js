@@ -20,13 +20,10 @@ const RELEASE_PR_TITLE = core.getInput('RELEASE_PR_TITLE');
 const COMMIT_USERNAME = 'github-actions[bot]';
 const COMMIT_USEREMAIL = '<41898282+github-actions[bot]@users.noreply.github.com>';
 
-// ADD RELEASE LABEL
 async function run () {
   try {
     owner = getOwner();
     repo = getRepoName();
-    console.debug(`Repository Name: ${repo}, Owner: ${owner}`);
-    console.debug(`-----------------------------------------`);
 
     await cloneRepo();
 
@@ -259,7 +256,7 @@ async function fetchPrsForCommits (commits) {
       var ifPRToMaster = pr.base.ref === BASE_BRANCH;
       var isNotAReleasePr = !_.find(pr.labels, { 'name': RELEASE_PR_IDENTIFIER_LABEL });
 
-      return ifPRToMaster && isNotAReleasePr;
+      return ifBelongsToCurrentRepo && ifPRToMaster && isNotAReleasePr;
     })
     .map(function (pr) {
       return {
