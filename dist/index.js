@@ -28799,6 +28799,10 @@ async function getLastRelease () {
 async function getMergeCommitsSince (tagName) {
   const cwd = GITHUB_WORKSPACE + '/' + repo;
 
+  const commitsA = await simpleGit(cwd)
+    .branchLocal();
+
+    console.log(commitsA)
   const commits = await simpleGit(cwd)
     .pull('origin', 'master')
     .fetch('origin', 'master')
