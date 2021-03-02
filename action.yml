@@ -1,6 +1,6 @@
 name: 'Release Pull Request & Changelog Creator'
 description: 'Release Pull Request & Changelog Creator'
-author: 'Debarshi Bhaumik'
+author: 'Compucorp'
 
 inputs:
   GITHUB_TOKEN:
@@ -9,8 +9,8 @@ inputs:
   VERSION_NAME:
     description: 'Release Version Name'
     required: true
-  REPLACE:
-    description: 'Replace Commands'
+  IS_CIVICRM_EXTENTION:
+    description: 'If the Repository is a CiviCRM Extention'
     required: true
   FILE_UPDATE_COMMIT_DESC:
     description: 'Commit name to update the file'

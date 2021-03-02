@@ -1,22 +1,22 @@
 {
-  "name": "release-pr-github-action",
+  "name": "release-pr-action",
   "version": "1.0.0",
-  "description": "",
+  "description": "Create Release Pull Request Github Action",
   "main": "dist/index.js",
   "scripts": {
     "build": "npx ncc build src/main.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deb1990/release-pr-github-action.git"
+    "url": "git+https://github.com/compucorp/release-pr-action.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/deb1990/release-pr-github-action/issues"
+    "url": "https://github.com/compucorp/release-pr-action/issues"
   },
-  "homepage": "https://github.com/deb1990/release-pr-github-action#readme",
+  "homepage": "https://github.com/compucorp/release-pr-action#readme",
   "dependencies": {
     "@actions/core": "^1.2.6",
     "@actions/github": "^4.0.0",

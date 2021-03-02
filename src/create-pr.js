@@ -13,7 +13,7 @@ var owner, repo;
 const BASE_BRANCH = 'master';
 const RELEASE_VERSION = core.getInput('VERSION_NAME');
 const GITHUB_WORKSPACE = process.env.GITHUB_WORKSPACE;
-const REPLACE_COMMANDS = JSON.parse(core.getInput('REPLACE')).commands;
+const IS_CIVICRM_EXTENTION = process.env.IS_CIVICRM_EXTENTION;
 const FILE_UPDATE_COMMIT_DESC = core.getInput('FILE_UPDATE_COMMIT_DESC');
 const RELEASE_PR_IDENTIFIER_LABEL = core.getInput('RELEASE_PR_IDENTIFIER_LABEL');
 const RELEASE_PR_TITLE = core.getInput('RELEASE_PR_TITLE');
@@ -74,10 +74,9 @@ async function cloneRepo () {
 async function createReleaseCandidateBranch () {
   const cwd = GITHUB_WORKSPACE + '/' + repo;
 
-  _.each(REPLACE_COMMANDS, function (cmd) {
-    cmd = cmd.replace('<<DATE>>', dayjs().format('YYYY-MM-DD'));
-    execSync(cmd, { cwd });
-  });
+  if (IS_CIVICRM_EXTENTION) {
+    performCivicrmExtentionFileUpdates();
+  }
 
   await simpleGit(cwd)
     .addConfig('user.name', COMMIT_USERNAME)
@@ -95,7 +94,7 @@ async function createReleaseCandidateBranch () {
  * @returns {Promise} newly created pr object
  */
 async function createReleasePR (body) {
-  var pr = await octokit.pulls.create({
+  const pr = await octokit.pulls.create({
     owner,
     repo,
     title: RELEASE_PR_TITLE,
@@ -123,13 +122,10 @@ function getRcBranchName () {
  */
 function getReleasePRBody (mergedPRs) {
   const date = dayjs().format('DD MMMM, YYYY');
-  var body = `## Release Update - ${date}\n\n### Changelog\n`;
+  const releaseTitle = `## Release Update - ${date}\n\n### Changelog\n`;
+  const prTitles = mergedPRs.map((pr) =>  `\n* ${pr.title} #${pr.number} - @${pr.user}`);
 
-  _.each(mergedPRs, function (pr) {
-    body += `\n* ${pr.title} #${pr.number} - @${pr.user}`;
-  });
-
-  return body;
+  return releaseTitle + prTitles.join('');
 }
 
 /**
@@ -161,13 +157,13 @@ function getRepoName () {
  */
 async function getLastRelease () {
   try {
-    var release = await octokit.repos.getLatestRelease({
+    const release = await octokit.repos.getLatestRelease({
       owner: owner,
       repo: repo
     });
 
     return release.data;
-  } catch (e) {
+  } catch (error) {
     return;
   }
 }
@@ -182,7 +178,7 @@ async function getLastRelease () {
 async function getMergeCommitsSince (tagName) {
   const cwd = GITHUB_WORKSPACE + '/' + repo;
 
-  var commits = await simpleGit(cwd)
+  const commits = await simpleGit(cwd)
     .log({ from: BASE_BRANCH, to: tagName, '--merges': true });
 
   return commits.all;
@@ -196,7 +192,7 @@ async function getMergeCommitsSince (tagName) {
 async function getAllMergeCommitsSinceBeginning () {
   const cwd = GITHUB_WORKSPACE + '/' + repo;
 
-  var commits = await simpleGit(cwd)
+  const commits = await simpleGit(cwd)
     .log({ from: BASE_BRANCH, '--merges': true });
 
   // limiting results to 500 prs, as its unlikely to have more prs in a single
@@ -217,7 +213,6 @@ async function getAllMergeCommitsSinceBeginning () {
 async function getPullRequests (lastRelease) {
   let commits;
 
-  var lastRelease = { tag_name: '1.9.9'};
   if (lastRelease) {
     commits = await getMergeCommitsSince(lastRelease.tag_name);
   } else {
@@ -228,16 +223,27 @@ async function getPullRequests (lastRelease) {
 }
 
 /**
+ * Perform release file updates for CiviCRM Extentions
+ */
+function performCivicrmExtentionFileUpdates () {
+  var updateVersionCmd = `sed -i '/<version>/c\  <version>${RELEASE_VERSION}</version>\' info.xml`;
+  var updateDateCmd = `sed -i '/<releaseDate>/c\  <releaseDate>${dayjs().format('YYYY-MM-DD')}</releaseDate>\' info.xml`;
+
+  execSync(updateVersionCmd, { cwd });
+  execSync(updateDateCmd, { cwd });
+}
+
+/**
  * Fetch all prs for the merge commits
  *
  * @param {Array} commits list of commits
  * @returns {Promise} list of pull requests
  */
 async function fetchPrsForCommits (commits) {
-  var promises = await _.map(commits, async function (commit) {
-    var url = 'GET /repos/' + owner + '/' + repo + '/commits/' + commit.hash + '/pulls';
+  const promises = await _.map(commits, async function (commit) {
+    const url = 'GET /repos/' + owner + '/' + repo + '/commits/' + commit.hash + '/pulls';
 
-    var data = await octokit.request(url, {
+    const data = await octokit.request(url, {
       owner: owner,
       repo: repo,
       commit_sha: commit.sha,
@@ -247,14 +253,14 @@ async function fetchPrsForCommits (commits) {
     return data.data;
   });
 
-  var pullRequests = await Promise.all(promises);
+  let pullRequests = await Promise.all(promises);
 
   return _.chain(pullRequests)
     .flatten()
     .filter(function (pr) {
-      var ifBelongsToCurrentRepo = pr.base.repo.full_name === owner + '/' + repo;
-      var ifPRToMaster = pr.base.ref === BASE_BRANCH;
-      var isNotAReleasePr = !_.find(pr.labels, { 'name': RELEASE_PR_IDENTIFIER_LABEL });
+      const ifBelongsToCurrentRepo = pr.base.repo.full_name === owner + '/' + repo;
+      const ifPRToMaster = pr.base.ref === BASE_BRANCH;
+      const isNotAReleasePr = !_.find(pr.labels, { 'name': RELEASE_PR_IDENTIFIER_LABEL });
 
       return ifBelongsToCurrentRepo && ifPRToMaster && isNotAReleasePr;
     })
