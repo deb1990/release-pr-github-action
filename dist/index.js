@@ -28800,6 +28800,7 @@ async function getMergeCommitsSince (tagName) {
   const cwd = GITHUB_WORKSPACE + '/' + repo;
 
   const commitsA = await simpleGit(cwd)
+    .fetch('origin')
     .branchLocal();
 
     console.log(commitsA)
