@@ -28654,6 +28654,7 @@ async function run () {
     if (filteredPullRequests.length === 0 ) {
       throw new Error('No Pull requests has been merged since last release');
     }
+    console.log('filteredPullRequests', filteredPullRequests);
 
     await createReleaseCandidateBranch();
     const pr = await createReleasePR(getReleasePRBody(filteredPullRequests));
@@ -28695,8 +28696,9 @@ async function cloneRepo () {
 async function createReleaseCandidateBranch () {
   const cwd = GITHUB_WORKSPACE + '/' + repo;
 
+  console.log('IS_CIVICRM_EXTENTION', IS_CIVICRM_EXTENTION)
   if (IS_CIVICRM_EXTENTION) {
-    performCivicrmExtentionFileUpdates();
+    performCivicrmExtentionFileUpdates(cwd);
   }
 
   await simpleGit(cwd)
@@ -28841,13 +28843,14 @@ async function getPullRequests (lastRelease) {
     commits = await getAllMergeCommitsSinceBeginning()
   }
 
+  console.log('commit', commits);
   return await fetchPrsForCommits(commits);
 }
 
 /**
  * Perform release file updates for CiviCRM Extentions
  */
-function performCivicrmExtentionFileUpdates () {
+function performCivicrmExtentionFileUpdates (cwd) {
   var updateVersionCmd = `sed -i '/<version>/c\  <version>${RELEASE_VERSION}</version>\' info.xml`;
   var updateDateCmd = `sed -i '/<releaseDate>/c\  <releaseDate>${dayjs().format('YYYY-MM-DD')}</releaseDate>\' info.xml`;
 
