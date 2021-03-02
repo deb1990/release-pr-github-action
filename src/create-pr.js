@@ -178,14 +178,16 @@ async function getLastRelease () {
 async function getMergeCommitsSince (tagName) {
   const cwd = GITHUB_WORKSPACE + '/' + repo;
 
-  const commitsA = await simpleGit(cwd)
-    .fetch('origin')
+  const commitsB = await simpleGit(cwd)
+    .fetch('origin');
+
+  var commitsA = await simpleGit(cwd)
     .branchLocal();
 
     console.log(commitsA)
   const commits = await simpleGit(cwd)
-    .pull('origin', 'master')
-    .fetch('origin', 'master')
+    .pull('origin')
+    .fetch('origin')
     .log({ from: BASE_BRANCH, to: tagName, '--merges': true });
 
   return commits.all;
