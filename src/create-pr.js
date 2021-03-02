@@ -13,7 +13,7 @@ var owner, repo;
 const BASE_BRANCH = 'master';
 const RELEASE_VERSION = core.getInput('VERSION_NAME');
 const GITHUB_WORKSPACE = process.env.GITHUB_WORKSPACE;
-const IS_CIVICRM_EXTENTION = process.env.IS_CIVICRM_EXTENTION;
+const IS_CIVICRM_EXTENTION = core.getInput('IS_CIVICRM_EXTENTION');
 const FILE_UPDATE_COMMIT_DESC = core.getInput('FILE_UPDATE_COMMIT_DESC');
 const RELEASE_PR_IDENTIFIER_LABEL = core.getInput('RELEASE_PR_IDENTIFIER_LABEL');
 const RELEASE_PR_TITLE = core.getInput('RELEASE_PR_TITLE');
