@@ -4148,6 +4148,8 @@ function setup(env) {
 	function createDebug(namespace) {
 		let prevTime;
 		let enableOverride = null;
+		let namespacesCache;
+		let enabledCache;
 
 		function debug(...args) {
 			// Disabled?
@@ -4208,7 +4210,17 @@ function setup(env) {
 		Object.defineProperty(debug, 'enabled', {
 			enumerable: true,
 			configurable: false,
-			get: () => enableOverride === null ? createDebug.enabled(namespace) : enableOverride,
+			get: () => {
+				if (enableOverride !== null) {
+					return enableOverride;
+				}
+				if (namespacesCache !== createDebug.namespaces) {
+					namespacesCache = createDebug.namespaces;
+					enabledCache = createDebug.enabled(namespace);
+				}
+
+				return enabledCache;
+			},
 			set: v => {
 				enableOverride = v;
 			}
@@ -4237,6 +4249,7 @@ function setup(env) {
 	*/
 	function enable(namespaces) {
 		createDebug.save(namespaces);
+		createDebug.namespaces = namespaces;
 
 		createDebug.names = [];
 		createDebug.skips = [];
@@ -23760,9 +23773,11 @@ function onceStrict (fn) {
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 const Git = __nccwpck_require__(4966);
+
 const {GitConstructError} = __nccwpck_require__(4732);
 const {PluginStore} = __nccwpck_require__(5067);
 const {commandConfigPrefixingPlugin} = __nccwpck_require__(2581);
+const {progressMonitorPlugin} = __nccwpck_require__(1738);
 const {createInstanceConfig, folderExists} = __nccwpck_require__(847);
 
 const api = Object.create(null);
@@ -23806,9 +23821,11 @@ module.exports.gitInstanceFactory = function gitInstanceFactory (baseDir, option
       throw new GitConstructError(config, `Cannot use simple-git on a directory that does not exist`);
    }
 
-   if (config.config) {
+   if (Array.isArray(config.config)) {
       plugins.add(commandConfigPrefixingPlugin(config.config));
    }
+
+   config.progress && plugins.add(progressMonitorPlugin(config.progress));
 
    return new Git(config, plugins);
 };
@@ -23820,6 +23837,7 @@ module.exports.gitInstanceFactory = function gitInstanceFactory (baseDir, option
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 const {GitExecutor} = __nccwpck_require__(4701);
+const {SimpleGitApi} = __nccwpck_require__(999);
 
 const {Scheduler} = __nccwpck_require__(3421);
 const {GitLogger} = __nccwpck_require__(7178);
@@ -23839,7 +23857,6 @@ const {
 } = __nccwpck_require__(847);
 const {applyPatchTask} = __nccwpck_require__(4931)
 const {branchTask, branchLocalTask, deleteBranchesTask, deleteBranchTask} = __nccwpck_require__(17);
-const {taskCallback} = __nccwpck_require__(8850);
 const {checkIgnoreTask} = __nccwpck_require__(3293);
 const {checkIsRepoTask} = __nccwpck_require__(221);
 const {cloneTask, cloneMirrorTask} = __nccwpck_require__(3173);
@@ -23854,7 +23871,7 @@ const {logTask, parseLogOptions} = __nccwpck_require__(8627);
 const {mergeTask} = __nccwpck_require__(8829);
 const {moveTask} = __nccwpck_require__(6520);
 const {pullTask} = __nccwpck_require__(4636);
-const {pushTagsTask, pushTask} = __nccwpck_require__(1435);
+const {pushTagsTask} = __nccwpck_require__(1435);
 const {addRemoteTask, getRemotesTask, listRemotesTask, remoteTask, removeRemoteTask} = __nccwpck_require__(9866);
 const {getResetMode, resetTask} = __nccwpck_require__(2377);
 const {stashListTask} = __nccwpck_require__(810);
@@ -23862,8 +23879,6 @@ const {statusTask} = __nccwpck_require__(9197);
 const {addSubModuleTask, initSubModuleTask, subModuleTask, updateSubModuleTask} = __nccwpck_require__(8772);
 const {addAnnotatedTagTask, addTagTask, tagListTask} = __nccwpck_require__(8540);
 const {straightThroughBufferTask, straightThroughStringTask} = __nccwpck_require__(2815);
-
-const ChainedExecutor = Symbol('ChainedExecutor');
 
 function Git (options, plugins) {
    this._executor = new GitExecutor(
@@ -23873,12 +23888,7 @@ function Git (options, plugins) {
    this._logger = new GitLogger();
 }
 
-/**
- * The executor that runs each of the added commands
- * @type {GitExecutor}
- * @private
- */
-Git.prototype._executor = null;
+(Git.prototype = Object.create(SimpleGitApi.prototype)).constructor = Git;
 
 /**
  * Logging utility for printing out info or error messages to the user
@@ -24057,16 +24067,6 @@ Git.prototype.checkoutLatestTag = function (then) {
          git.checkout(tags.latest, then);
       });
    });
-};
-
-/**
- * Adds one or more files to source control
- */
-Git.prototype.add = function (files) {
-   return this._runTask(
-      straightThroughStringTask(['add', ...asArray(files)]),
-      trailingFunctionArgument(arguments),
-   );
 };
 
 /**
@@ -24503,18 +24503,6 @@ Git.prototype.updateServerInfo = function (then) {
 };
 
 /**
- * Pushes the current committed changes to a remote, optionally specify the names of the remote and branch to use
- * when pushing. Supply multiple options as an array of strings in the first argument - see examples below.
- */
-Git.prototype.push = function (remote, branch, then) {
-   const task = pushTask(
-      {remote: filterType(remote, filterString), branch: filterType(branch, filterString)},
-      getTrailingOptions(arguments),
-   );
-   return this._runTask(task, trailingFunctionArgument(arguments));
-};
-
-/**
  * Pushes the current tag changes to a remote which can be either a URL or named remote. When not specified uses the
  * default configured remote spec.
  *
@@ -24735,22 +24723,6 @@ Git.prototype.checkIsRepo = function (checkType, then) {
       checkIsRepoTask(filterType(checkType, filterString)),
       trailingFunctionArgument(arguments),
    );
-};
-
-Git.prototype._runTask = function (task, then) {
-   const executor = this[ChainedExecutor] || this._executor.chain();
-   const promise = executor.push(task);
-
-   taskCallback(
-      task,
-      promise,
-      then);
-
-   return Object.create(this, {
-      then: {value: promise.then.bind(promise)},
-      catch: {value: promise.catch.bind(promise)},
-      [ChainedExecutor]: {value: executor},
-   });
 };
 
 module.exports = Git;
@@ -25633,20 +25605,22 @@ exports.commandConfigPrefixingPlugin = commandConfigPrefixingPlugin;
 /***/ }),
 
 /***/ 5067:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PluginStore = void 0;
+const utils_1 = __nccwpck_require__(847);
 class PluginStore {
     constructor() {
         this.plugins = new Set();
     }
     add(plugin) {
-        this.plugins.add(plugin);
+        const plugins = utils_1.asArray(plugin);
+        plugins.forEach(plugin => this.plugins.add(plugin));
         return () => {
-            this.plugins.delete(plugin);
+            plugins.forEach(plugin => this.plugins.delete(plugin));
         };
     }
     exec(type, data, context) {
@@ -25662,6 +25636,58 @@ class PluginStore {
 }
 exports.PluginStore = PluginStore;
 //# sourceMappingURL=plugin-store.js.map
+
+/***/ }),
+
+/***/ 1738:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.progressMonitorPlugin = void 0;
+const utils_1 = __nccwpck_require__(847);
+function progressMonitorPlugin(progress) {
+    const progressCommand = '--progress';
+    const progressMethods = ['checkout', 'clone', 'fetch', 'pull', 'push'];
+    const onProgress = {
+        type: 'spawn.after',
+        action(_data, context) {
+            var _a;
+            if (!context.commands.includes(progressCommand)) {
+                return;
+            }
+            (_a = context.spawned.stderr) === null || _a === void 0 ? void 0 : _a.on('data', (chunk) => {
+                const message = /^([a-zA-Z ]+):\s*(\d+)% \((\d+)\/(\d+)\)/.exec(chunk.toString('utf8'));
+                if (!message) {
+                    return;
+                }
+                progress({
+                    method: context.method,
+                    stage: progressEventStage(message[1]),
+                    progress: utils_1.asNumber(message[2]),
+                    processed: utils_1.asNumber(message[3]),
+                    total: utils_1.asNumber(message[4]),
+                });
+            });
+        }
+    };
+    const onArgs = {
+        type: 'spawn.args',
+        action(args, context) {
+            if (!progressMethods.includes(context.method)) {
+                return args;
+            }
+            return utils_1.including(args, progressCommand);
+        }
+    };
+    return [onArgs, onProgress];
+}
+exports.progressMonitorPlugin = progressMonitorPlugin;
+function progressEventStage(input) {
+    return String(input.toLowerCase().split(' ', 1)) || 'unknown';
+}
+//# sourceMappingURL=progress-monitor-plugin.js.map
 
 /***/ }),
 
@@ -26289,8 +26315,8 @@ exports.GitExecutorChain = void 0;
 const child_process_1 = __nccwpck_require__(3129);
 const api_1 = __nccwpck_require__(4732);
 const task_1 = __nccwpck_require__(2815);
-const tasks_pending_queue_1 = __nccwpck_require__(6676);
 const utils_1 = __nccwpck_require__(847);
+const tasks_pending_queue_1 = __nccwpck_require__(6676);
 class GitExecutorChain {
     constructor(_executor, _scheduler, _plugins) {
         this._executor = _executor;
@@ -26310,6 +26336,9 @@ class GitExecutorChain {
     }
     get outputHandler() {
         return this._executor.outputHandler;
+    }
+    chain() {
+        return this;
     }
     push(task) {
         this._queue.push(task);
@@ -26342,8 +26371,8 @@ class GitExecutorChain {
     }
     attemptRemoteTask(task, logger) {
         return __awaiter(this, void 0, void 0, function* () {
-            const args = this._plugins.exec('spawn.args', task.commands, {});
-            const raw = yield this.gitResponse(this.binary, args, this.outputHandler, logger.step('SPAWN'));
+            const args = this._plugins.exec('spawn.args', [...task.commands], pluginContext(task, task.commands));
+            const raw = yield this.gitResponse(task, this.binary, args, this.outputHandler, logger.step('SPAWN'));
             const outputStreams = yield this.handleTaskData(task, raw, logger.step('HANDLE'));
             logger(`passing response to task's parser as a %s`, task.format);
             if (task_1.isBufferTask(task)) {
@@ -26383,7 +26412,7 @@ class GitExecutorChain {
             done(new utils_1.GitOutputStreams(Buffer.concat(stdOut), Buffer.concat(stdErr)));
         });
     }
-    gitResponse(command, args, outputHandler, logger) {
+    gitResponse(task, command, args, outputHandler, logger) {
         return __awaiter(this, void 0, void 0, function* () {
             const outputLogger = logger.sibling('output');
             const spawnOptions = {
@@ -26426,11 +26455,18 @@ class GitExecutorChain {
                     logger(`Passing child process stdOut/stdErr to custom outputHandler`);
                     outputHandler(command, spawned.stdout, spawned.stderr, [...args]);
                 }
+                this._plugins.exec('spawn.after', undefined, Object.assign(Object.assign({}, pluginContext(task, args)), { spawned }));
             });
         });
     }
 }
 exports.GitExecutorChain = GitExecutorChain;
+function pluginContext(task, commands) {
+    return {
+        method: utils_1.first(task.commands) || '',
+        commands,
+    };
+}
 function onErrorReceived(target, logger) {
     return (err) => {
         logger(`[ERROR] child process exception %o`, err);
@@ -26740,6 +26776,49 @@ class TasksPendingQueue {
 exports.TasksPendingQueue = TasksPendingQueue;
 TasksPendingQueue.counter = 0;
 //# sourceMappingURL=tasks-pending-queue.js.map
+
+/***/ }),
+
+/***/ 999:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SimpleGitApi = void 0;
+const task_callback_1 = __nccwpck_require__(8850);
+const push_1 = __nccwpck_require__(1435);
+const task_1 = __nccwpck_require__(2815);
+const utils_1 = __nccwpck_require__(847);
+class SimpleGitApi {
+    constructor(_executor) {
+        this._executor = _executor;
+    }
+    _runTask(task, then) {
+        const chain = this._executor.chain();
+        const promise = chain.push(task);
+        if (then) {
+            task_callback_1.taskCallback(task, promise, then);
+        }
+        return Object.create(this, {
+            then: { value: promise.then.bind(promise) },
+            catch: { value: promise.catch.bind(promise) },
+            _executor: { value: chain },
+        });
+    }
+    add(files) {
+        return this._runTask(task_1.straightThroughStringTask(['add', ...utils_1.asArray(files)]), utils_1.trailingFunctionArgument(arguments));
+    }
+    push() {
+        const task = push_1.pushTask({
+            remote: utils_1.filterType(arguments[0], utils_1.filterString),
+            branch: utils_1.filterType(arguments[1], utils_1.filterString),
+        }, utils_1.getTrailingOptions(arguments));
+        return this._runTask(task, utils_1.trailingFunctionArgument(arguments));
+    }
+}
+exports.SimpleGitApi = SimpleGitApi;
+//# sourceMappingURL=simple-git-api.js.map
 
 /***/ }),
 
@@ -28060,7 +28139,7 @@ exports.parseStringResponse = parseStringResponse;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.prefixedArray = exports.asNumber = exports.asStringArray = exports.asArray = exports.objectToString = exports.remove = exports.append = exports.folderExists = exports.forEachLineWithContent = exports.toLinesWithContent = exports.last = exports.first = exports.splitOn = exports.isUserFunction = exports.asFunction = exports.NOOP = void 0;
+exports.prefixedArray = exports.asNumber = exports.asStringArray = exports.asArray = exports.objectToString = exports.remove = exports.including = exports.append = exports.folderExists = exports.forEachLineWithContent = exports.toLinesWithContent = exports.last = exports.first = exports.splitOn = exports.isUserFunction = exports.asFunction = exports.NOOP = void 0;
 const file_exists_1 = __nccwpck_require__(4751);
 const NOOP = () => {
 };
@@ -28125,7 +28204,7 @@ function folderExists(path) {
 }
 exports.folderExists = folderExists;
 /**
- * Adds `item` into the `target` `Array` or `Set` when it is not already present.
+ * Adds `item` into the `target` `Array` or `Set` when it is not already present and returns the `item`.
  */
 function append(target, item) {
     if (Array.isArray(target)) {
@@ -28139,6 +28218,16 @@ function append(target, item) {
     return item;
 }
 exports.append = append;
+/**
+ * Adds `item` into the `target` `Array` when it is not already present and returns the `target`.
+ */
+function including(target, item) {
+    if (Array.isArray(target) && !target.includes(item)) {
+        target.push(item);
+    }
+    return target;
+}
+exports.including = including;
 function remove(target, item) {
     if (Array.isArray(target)) {
         const index = target.indexOf(item);
