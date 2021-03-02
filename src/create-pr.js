@@ -179,6 +179,7 @@ async function getMergeCommitsSince (tagName) {
   const cwd = GITHUB_WORKSPACE + '/' + repo;
 
   const commits = await simpleGit(cwd)
+    .pull('origin', 'master')
     .fetch('origin', 'master')
     .log({ from: BASE_BRANCH, to: tagName, '--merges': true });
 
