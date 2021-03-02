@@ -28834,7 +28834,7 @@ async function getAllMergeCommitsSinceBeginning () {
 async function getPullRequests (lastRelease) {
   let commits;
 
-  var lastRelease = { tag_name: '1.11.0' };
+  var lastRelease = { tag_name: '1.9.9' };
   if (lastRelease) {
     commits = await getMergeCommitsSince(lastRelease.tag_name);
   } else {
