@@ -178,16 +178,7 @@ async function getLastRelease () {
 async function getMergeCommitsSince (tagName) {
   const cwd = GITHUB_WORKSPACE + '/' + repo;
 
-  await simpleGit(cwd)
-    .fetch('origin');
-
-  var commitsA = await simpleGit(cwd)
-    .branch({'-av': 'true'});
-
-    console.log(commitsA)
   const commits = await simpleGit(cwd)
-    .pull('origin')
-    .fetch('origin')
     .log({ from: BASE_BRANCH, to: tagName, '--merges': true });
 
   return commits.all;
@@ -222,7 +213,7 @@ async function getAllMergeCommitsSinceBeginning () {
 async function getPullRequests (lastRelease) {
   let commits;
 
-  var lastRelease = { tag_name: '1.9.9' };
+  var lastRelease = { tag_name: 'd4523cb89334b741d1194f44e2f4f783ec17ed46' };
   if (lastRelease) {
     commits = await getMergeCommitsSince(lastRelease.tag_name);
   } else {
