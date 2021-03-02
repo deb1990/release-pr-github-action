@@ -230,8 +230,8 @@ async function getPullRequests (lastRelease) {
  * Perform release file updates for CiviCRM Extentions
  */
 function performCivicrmExtentionFileUpdates (cwd) {
-  var updateVersionCmd = `sed -i '/<version>/c\  <version>${RELEASE_VERSION}</version>\' info.xml`;
-  var updateDateCmd = `sed -i '/<releaseDate>/c\  <releaseDate>${dayjs().format('YYYY-MM-DD')}</releaseDate>\' info.xml`;
+  var updateVersionCmd = "sed -i '/<version>/c\  <version>" + RELEASE_VERSION + "</version>\' info.xml";
+  var updateDateCmd = "sed -i '/<releaseDate>/c\  <releaseDate>" + dayjs().format('YYYY-MM-DD') + "</releaseDate>\' info.xml";
 
   execSync(updateVersionCmd, { cwd });
   execSync(updateDateCmd, { cwd });
