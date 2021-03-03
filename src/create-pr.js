@@ -33,7 +33,6 @@ async function run () {
     if (filteredPullRequests.length === 0 ) {
       throw new Error('No Pull requests has been merged since last release');
     }
-    console.log('filteredPullRequests', filteredPullRequests);
 
     await createReleaseCandidateBranch();
     const pr = await createReleasePR(getReleasePRBody(filteredPullRequests));
@@ -75,7 +74,6 @@ async function cloneRepo () {
 async function createReleaseCandidateBranch () {
   const cwd = GITHUB_WORKSPACE + '/' + repo;
 
-  console.log('IS_CIVICRM_EXTENTION', IS_CIVICRM_EXTENTION)
   if (IS_CIVICRM_EXTENTION) {
     performCivicrmExtentionFileUpdates(cwd);
   }
@@ -124,7 +122,8 @@ function getRcBranchName () {
  */
 function getReleasePRBody (mergedPRs) {
   const date = dayjs().format('DD MMMM, YYYY');
-  const releaseTitle = `## Release Update - ${date}\n\n### Changelog\n`;
+  const releaseTitle = `:warning: **This is an auto generated Pull Request, manual changes can be done before sending for review.** :warning:
+    ## Release Update - ${date}\n\n### Changelog\n`;
   const prTitles = mergedPRs.map((pr) =>  `\n* ${pr.title} #${pr.number} - @${pr.user}`);
 
   return releaseTitle + prTitles.join('');
@@ -222,7 +221,6 @@ async function getPullRequests (lastRelease) {
     commits = await getAllMergeCommitsSinceBeginning()
   }
 
-  console.log('commit', commits);
   return await fetchPrsForCommits(commits);
 }
 
