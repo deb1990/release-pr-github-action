@@ -123,7 +123,7 @@ function getRcBranchName () {
 function getReleasePRBody (mergedPRs) {
   const date = dayjs().format('DD MMMM, YYYY');
   const releaseTitle = `:warning: **This is an auto generated Pull Request, manual changes can be done before sending for review.** :warning:
-    ## Release Update - ${date}\n\n### Changelog\n`;
+  ## Release Update - ${date}\n\n### Changelog\n`;
   const prTitles = mergedPRs.map((pr) =>  `\n* ${pr.title} #${pr.number} - @${pr.user}`);
 
   return releaseTitle + prTitles.join('');
