@@ -37,7 +37,7 @@ jobs:
 
       - name: Build Drupal site
         run: |
-          civibuild create drupal-clean --civi-ver  --cms-ver 7.74 --web-root $GITHUB_WORKSPACE/${{ env.SITE_FOLDER }} --url ${{ env.SITE_URL }}
+          civibuild create drupal-clean --civi-ver 5.35 --cms-ver 7.74 --web-root $GITHUB_WORKSPACE/${{ env.SITE_FOLDER }} --url ${{ env.SITE_URL }}
           chmod -R 777 $GITHUB_WORKSPACE/${{ env.SITE_FOLDER }}
 
       - name: Create Feature folder
@@ -59,3 +59,4 @@ jobs:
           ls -lt
           cd compuclient_default_roles_and_permissions
           ls -lt
+          drush en compuclient_default_roles_and_permissions
