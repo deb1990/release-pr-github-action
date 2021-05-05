@@ -43,5 +43,5 @@ jobs:
       - name: Download Compuclient
         run: |
           git clone https://${{ secrets.ACCESS_TOKEN }}@github.com/compucorp/compuclient.git
-          cd ${{ env.E2E_DIR }}
+          cd compuclient
           git checkout 7.x-1.21
