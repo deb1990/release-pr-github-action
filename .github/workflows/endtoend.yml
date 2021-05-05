@@ -11,6 +11,7 @@ jobs:
       SITE_FOLDER: site
       SITE_URL: http://localhost:7979
       CIVICRM_EXTENSIONS_DIR: web/sites/all/modules/civicrm/tools/extensions
+      DRUPAL_MODULES_DIR: web/sites/all/modules/
       E2E_DIR: cases-product-suite-e2e-tests
       DRUPAL_THEME_DIR: web/sites/all/themes
 
@@ -34,14 +35,27 @@ jobs:
           echo "IncludeOptional $HOME/.amp/apache.d/*.conf" >> /etc/apache2/apache2.conf
           /usr/sbin/apache2ctl restart
 
-      # - name: Build Drupal site
-      #   run: |
-      #     civibuild create drupal-clean --civi-ver  --cms-ver 7.74 --web-root $GITHUB_WORKSPACE/${{ env.SITE_FOLDER }} --url ${{ env.SITE_URL }}
-      #     chmod -R 777 $GITHUB_WORKSPACE/${{ env.SITE_FOLDER }}
+      - name: Build Drupal site
+        run: |
+          civibuild create drupal-clean --civi-ver  --cms-ver 7.74 --web-root $GITHUB_WORKSPACE/${{ env.SITE_FOLDER }} --url ${{ env.SITE_URL }}
+          chmod -R 777 $GITHUB_WORKSPACE/${{ env.SITE_FOLDER }}
 
+      - name: Create Feature folder
+        working-directory: ${{ env.SITE_FOLDER }}/${{ env.DRUPAL_MODULES_DIR }}
+        run: |
+          mkdir features
 
       - name: Download Compuclient
         run: |
           git clone https://${{ secrets.ACCESS_TOKEN }}@github.com/compucorp/compuclient.git
           cd compuclient
           git checkout 7.x-1.21
+          cd modules/features
+          cp compuclient_default_roles_and_permissions ${{ env.SITE_FOLDER }}/${{ env.DRUPAL_MODULES_DIR }}/features
+
+      - name: Check
+        working-directory: ${{ env.SITE_FOLDER }}/${{ env.DRUPAL_MODULES_DIR }}/features
+        run: |
+          ls -lt
+          cd compuclient_default_roles_and_permissions
+          ls -lt
