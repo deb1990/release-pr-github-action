@@ -15,6 +15,6 @@ jobs:
       DRUPAL_THEME_DIR: web/sites/all/themes
 
     steps:
-     - name: Download Compuclient
+      - name: Download Compuclient
         run: |
           git clone https://${{ secrets.ACCESS_TOKEN }}@github.com/compucorp/compuclient.git
