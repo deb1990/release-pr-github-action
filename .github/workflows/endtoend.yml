@@ -51,7 +51,7 @@ jobs:
           cd compuclient
           git checkout 7.x-1.21
           cd modules/features
-          cp compuclient_default_roles_and_permissions ${{ env.SITE_FOLDER }}/${{ env.DRUPAL_MODULES_DIR }}/features
+          cp -R compuclient_default_roles_and_permissions ${{ env.SITE_FOLDER }}/${{ env.DRUPAL_MODULES_DIR }}/features
 
       - name: Check
         working-directory: ${{ env.SITE_FOLDER }}/${{ env.DRUPAL_MODULES_DIR }}/features
