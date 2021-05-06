@@ -1,0 +1,62 @@
+name: End to End Tests
+
+on: pull_request
+
+jobs:
+  run-backstop-tests:
+    runs-on: ubuntu-latest
+    container: compucorp/civicrm-buildkit:1.1.0-php7.2-chrome
+
+    env:
+      SITE_FOLDER: site
+      SITE_URL: http://localhost:7979
+      CIVICRM_EXTENSIONS_DIR: web/sites/all/modules/civicrm/tools/extensions
+      DRUPAL_MODULES_DIR: web/sites/all/modules
+      E2E_DIR: cases-product-suite-e2e-tests
+      DRUPAL_THEME_DIR: web/sites/all/themes
+
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+        - 3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+
+      - name: Config mysql database as per CiviCRM requirement
+        run: echo "SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));" | mysql -u root --password=root --host=mysql
+
+      - name: Config amp
+        run : |
+          amp config:set --db_type=mysql_dsn --mysql_dsn='mysql://root:root@mysql:3306' --httpd_type=apache24 --httpd_restart_command='sudo /usr/sbin/apache2ctl graceful' --perm_type=worldWritable --hosts_type=file
+          echo "IncludeOptional $HOME/.amp/apache.d/*.conf" >> /etc/apache2/apache2.conf
+          /usr/sbin/apache2ctl restart
+
+      - name: Build Drupal site
+        run: |
+          civibuild create drupal-clean --civi-ver 5.35 --cms-ver 7.74 --web-root $GITHUB_WORKSPACE/${{ env.SITE_FOLDER }} --url ${{ env.SITE_URL }}
+          chmod -R 777 $GITHUB_WORKSPACE/${{ env.SITE_FOLDER }}
+
+      - name: Create Feature folder
+        working-directory: ${{ env.SITE_FOLDER }}/${{ env.DRUPAL_MODULES_DIR }}
+        run: |
+          mkdir features
+
+      - name: Download Compuclient
+        run: |
+          git clone https://${{ secrets.ACCESS_TOKEN }}@github.com/compucorp/compuclient.git
+          cd compuclient
+          git checkout 7.x-1.21
+          cd modules/features
+          cp -R compuclient_default_roles_and_permissions $GITHUB_WORKSPACE/${{ env.SITE_FOLDER }}/${{ env.DRUPAL_MODULES_DIR }}/features
+
+      - name: Check
+        working-directory: ${{ env.SITE_FOLDER }}/${{ env.DRUPAL_MODULES_DIR }}/features
+        run: |
+          ls -lt
+          cd compuclient_default_roles_and_permissions
+          ls -lt
+          drush en compuclient_default_roles_and_permissions -y -n
