@@ -59,4 +59,4 @@ jobs:
           ls -lt
           cd compuclient_default_roles_and_permissions
           ls -lt
-          drush en compuclient_default_roles_and_permissions
+          drush en compuclient_default_roles_and_permissions -y
